@@ -1,0 +1,64 @@
+{
+  "npc": [
+    442,
+    467
+  ],
+  "stone": [
+    830,
+    356
+  ],
+  "charm": [
+    858,
+    384
+  ],
+  "ok": [
+    157,
+    589
+  ],
+  "reg1": [
+    646,
+    76
+  ],
+  "reg2": [
+    889,
+    702
+  ],
+  "menu": [
+    804,
+    606
+  ],
+  "bag_target": [
+    871,
+    100
+  ],
+  "types": {
+    "sword": {
+      "enabled": true,
+      "times": 13
+    },
+    "boots": {
+      "enabled": false,
+      "times": 10
+    },
+    "armor": {
+      "enabled": false,
+      "times": 12
+    }
+  },
+  "use_charm": true,
+  "click_npc_every_time": false,
+  "delay_click": 0.001,
+  "delay_after_npc": 1.0,
+  "delay_after_ok": 0.001,
+  "threshold": 0.85,
+  "method": 1,
+  "auto": true,
+  "auto_buy": true,
+  "buy_stone": 500,
+  "buy_charm": 300,
+  "buy_armor": 22,
+  "loop": true,
+  "stone_have": 500,
+  "stone_low": 10,
+  "charm_from": 9
+}
