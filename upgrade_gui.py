@@ -664,7 +664,10 @@ class Bot:
                 # ไม่เจอหินทั้งในกระเป๋าและในแถบลัด = หินหมดจริง (ไม่เชื่อตัวเลขที่กรอกไว้)
                 self.stone_est = real if real is not None else 0
             if n == "stone" and self.track_stone and self.stone_est > 0:
-                # ตามที่นับไว้ยังมีหินอยู่ แต่หาไอคอนไม่เจอ -> น่าจะหาผิด ไม่ใช่หินหมด อย่าไปซื้อ
+                # ตามที่นับไว้ยังมีหินอยู่ แต่หาไอคอนไม่เจอ -> อาจมี popup ประกาศบังช่องหิน รอให้หายไปก่อน (สูงสุด ~15 วิ)
+                self.log("  หาไอคอนหินไม่เจอ แต่ยังมีหิน -> รอ popup/เอฟเฟกต์บังหาย แล้วหาซ้ำ")
+                if self.has_supply("stone", tries=38):
+                    continue
                 self.snap("debug_stone_not_found.png")
                 self.log(f"  หาไอคอนหินในกระเป๋าไม่เจอ (นับไว้ยังเหลือ {self.stone_est}) -> หยุด"
                          " ดูภาพ debug_stone_not_found.png")
@@ -689,7 +692,7 @@ class Bot:
     BAG_ROWS, BAG_COLS = 6, 6
 
     def done_rows(self):
-        return max(1, min(5, int(self.cfg.get("done_rows", 2))))  # จำนวนแถวล่างที่ใช้เก็บชิ้นที่ตีเสร็จ
+        return max(1, min(5, int(self.cfg.get("done_rows", 4))))  # จำนวนแถวล่างที่ใช้เก็บชิ้นที่ตีเสร็จ
 
     def cell(self, r, c):
         reg = self.region()
@@ -745,7 +748,8 @@ class Bot:
             if target:
                 break
         if not target:
-            self.log(f"  {self.done_rows()} แถวล่างของกระเป๋าเต็มแล้ว -> จำตำแหน่งไว้แทน (ช่วยเก็บชิ้นที่เสร็จออกด้วย)")
+            self.log(f"  {self.done_rows()} แถวล่างของกระเป๋าเต็มแล้ว -> หยุดทันที")
+            self.done_full = True
             return False
         self.log(f"  ย้ายชิ้นที่ตีเสร็จ {p} -> โซนเก็บ {target}")
 
@@ -912,6 +916,7 @@ class Bot:
             rounds = 0
             self.stone_est = int(self.cfg.get("stone_have", 0))
             self.track_stone = self.stone_est > 0
+            self.done_full = False
             self.done = {}  # ช่องที่ตีครบแล้วไม่แตก (จำเฉพาะรอบการกด F9 นี้)
             real = self.read_stone_count()
             if real is not None:
@@ -930,8 +935,15 @@ class Bot:
                         continue
                     spots = self.not_done(key, self.find(key))
                     if not spots and self.cfg.get("auto") and self.cfg.get("auto_buy", True):
-                        if self.restock(key) and self.open_npc():
-                            spots = self.not_done(key, self.find(key))
+                        for buy_try in range(1, 5):  # เอฟเฟกต์ตีสำเร็จบังโล้นอยู่ -> รอให้หายแล้วลองซื้อใหม่
+                            if not self.running.is_set():
+                                return
+                            if self.restock(key) and self.open_npc():
+                                spots = self.not_done(key, self.find(key))
+                                break
+                            self.log(f"  ซื้อไม่สำเร็จ (ครั้งที่ {buy_try}/4) -> รอ 6 วิ แล้วลองใหม่")
+                            if not self.wait(6.0):
+                                return
                     self.log(f"[รอบ {rounds}] {name}: เจอ {len(spots)} ชิ้น (ที่ยังไม่ได้ตี)")
                     for i, p in enumerate(spots, 1):
                         for n in range(1, t["times"] + 1):
@@ -954,6 +966,9 @@ class Bot:
                                 else:  # ตีครบแล้วไม่แตก -> ย้ายลงแถวล่าง (ย้ายไม่ได้ก็จำช่องไว้) รอบหน้าข้าม
                                     self.log(f"  {name} ชิ้น {i}: ตีครบ {t['times']} ครั้งไม่แตก")
                                     if not self.move_to_done_row(key, p):
+                                        if getattr(self, "done_full", False):
+                                            self.log("=== หยุด: โซนเก็บของเต็ม ===")
+                                            return
                                         self.done.setdefault(key, []).append(p)
                                     if not self.win_open and not self.open_npc():  # เปิดหน้าต่างเสริมพลังคืน
                                         return
